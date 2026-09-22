@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <!-- viewport-fit=cover 适配刘海屏 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>单词短语学习器</title>
+
+  <!-- 全局样式 -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- 图标尺寸工具类（Lucide 替换后作用于 svg） -->
+  <style>
+    .i-xs, .i-xs svg { width: 14px; height: 14px; }
+    .i-sm, .i-sm svg { width: 16px; height: 16px; }
+    .i-md, .i-md svg { width: 20px; height: 20px; }
+    .i-lg, .i-lg svg { width: 24px; height: 24px; }
+    .i-xl, .i-xl svg { width: 28px; height: 28px; }
+    .i-2xl, .i-2xl svg { width: 32px; height: 32px; }
+    .i-3xl, .i-3xl svg { width: 40px; height: 40px; }
+    .i-4xl, .i-4xl svg { width: 48px; height: 48px; }
+  </style>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Tesseract.js OCR CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <!-- ECharts CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</head>
+<body>
+
+  <!-- ============================================================
+       微信提示条（顶部固定、品牌色背景、箭头指向右上角）
+       ============================================================ -->
+  <div class="wechat-hint" id="wechat-hint">
+    <div class="wechat-hint-text">点击右上角 ··· 在浏览器中打开，以使用语音功能</div>
+    <div class="wechat-hint-arrow">
+      <span>点击这里</span>
+      <i data-lucide="chevron-up" class="i-md"></i>
+    </div>
+    <div class="wechat-hint-close" id="wechat-hint-close">
+      <i data-lucide="x" class="i-sm"></i>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       页面 1: 首页 (home) — 有底部导航
+       ============================================================ -->
+  <section class="page active" id="page-home">
+    <div class="page-content">
+      <!-- 顶部：日期 + 标题 -->
+      <div class="home-header">
+        <p class="home-date" id="home-date">9月22日 星期二</p>
+        <h1 class="home-title">单词短语学习器</h1>
+      </div>
+
+      <!-- 今日学习概览卡片 -->
+      <div class="overview-card">
+        <div class="overview-row">
+          <div class="overview-item">
+            <div class="overview-number" id="home-new-count">5</div>
+            <div class="overview-label">新增</div>
+          </div>
+          <div class="overview-item">
+            <div class="overview-number" id="home-review-count">3</div>
+            <div class="overview-label">复习</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 学习进度条 -->
+      <div class="home-progress">
+        <div class="home-progress-text">
+          <span>今日进度</span>
+          <span><span id="home-progress-done">0</span>/<span id="home-progress-total">8</span></span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-bar-fill" id="home-progress-fill" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- 开始今日学习大按钮 -->
+      <div class="home-cta">
+        <button class="btn btn-primary btn-block" data-action="start-study">
+          <i data-lucide="play" class="i-md"></i>
+          <span>开始今日学习</span>
+        </button>
+      </div>
+
+      <!-- 快捷入口 -->
+      <div class="quick-entry">
+        <div class="quick-entry-item" data-action="goto-library">
+          <div class="quick-entry-icon">
+            <i data-lucide="book-open"></i>
+          </div>
+          <span class="quick-entry-label">词库</span>
+        </div>
+        <div class="quick-entry-item" data-action="goto-error-book">
+          <div class="quick-entry-icon">
+            <i data-lucide="file-warning"></i>
+          </div>
+          <span class="quick-entry-label">错题本</span>
+        </div>
+        <div class="quick-entry-item" data-action="goto-stats">
+          <div class="quick-entry-icon">
+            <i data-lucide="bar-chart-2"></i>
+          </div>
+          <span class="quick-entry-label">统计</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       页面 2: 词库 (library) — 有底部导航
+       ============================================================ -->
+  <section class="page" id="page-library">
+    <!-- 标题 -->
+    <div class="lib-header">
+      <h1 class="lib-title">单词库</h1>
+      <span class="lib-count" id="lib-count">共 42 词</span>
+    </div>
+
+    <!-- 搜索框 -->
+    <div class="lib-search">
+      <div class="lib-search-wrap">
+        <i data-lucide="search" class="lib-search-icon"></i>
+        <input type="text" class="lib-search-input" id="lib-search-input" placeholder="搜索单词或短语" aria-label="搜索单词或短语">
+      </div>
+    </div>
+
+    <div class="page-content" style="padding-top: 8px;">
+      <!-- 单词列表（示例数据，JS 运行时动态替换） -->
+      <div class="lib-list" id="lib-word-list">
+        <!-- 示例单词 1 -->
+        <div class="lib-card" data-word-id="1">
+          <div class="lib-card-text">
+            <span class="lib-word">apple</span>
+            <span class="lib-meaning">苹果</span>
+            <span class="lib-meta">下次复习：9月23日</span>
+          </div>
+          <span class="badge badge-primary lib-badge">新学</span>
+        </div>
+        <!-- 示例单词 2 -->
+        <div class="lib-card" data-word-id="2">
+          <div class="lib-card-text">
+            <span class="lib-word">beautiful</span>
+            <span class="lib-meaning">美丽的</span>
+            <span class="lib-meta">下次复习：9月25日</span>
+          </div>
+          <span class="badge badge-neutral lib-badge">待复习</span>
+        </div>
+        <!-- 示例单词 3 -->
+        <div class="lib-card" data-word-id="3">
+          <div class="lib-card-text">
+            <span class="lib-word">run</span>
+            <span class="lib-meaning">跑</span>
+            <span class="lib-meta">下次复习：9月29日</span>
+          </div>
+          <span class="badge badge-success lib-badge">已掌握</span>
+        </div>
+        <!-- 示例单词 4 -->
+        <div class="lib-card" data-word-id="4">
+          <div class="lib-card-text">
+            <span class="lib-word">go to school</span>
+            <span class="lib-meaning">上学</span>
+            <span class="lib-meta">下次复习：9月23日</span>
+          </div>
+          <span class="badge badge-primary lib-badge">新学</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 添加单词浮动按钮 -->
+    <button class="lib-fab" data-action="goto-add-words" aria-label="添加单词">
+      <i data-lucide="plus"></i>
+    </button>
+  </section>
+
+  <!-- ============================================================
+       页面 3: 添加单词 (add-words) — 全屏，无底部导航
+       ============================================================ -->
+  <section class="page fullscreen" id="page-add-words">
+    <!-- 顶部导航 -->
+    <div class="aw-header">
+      <button class="aw-back-btn" data-action="back-to-library" aria-label="返回">
+        <i data-lucide="arrow-left"></i>
+      </button>
+      <h1 class="aw-header-title">添加单词</h1>
+      <div style="width: 36px;"></div>
+    </div>
+
+    <div class="page-content" style="padding-bottom: 16px; overflow-y: auto; flex: 1;">
+      <!-- 拍照导入区域 -->
+      <div class="aw-import-section">
+        <div class="aw-upload-zone" data-action="take-photo" tabindex="0">
+          <i data-lucide="camera" class="aw-upload-icon"></i>
+          <span class="aw-upload-text">拍照识别</span>
+        </div>
+        <!-- 图片导入区域 -->
+        <div class="aw-upload-zone" data-action="import-image" tabindex="0">
+          <i data-lucide="upload" class="aw-upload-icon"></i>
+          <span class="aw-upload-text">导入图片</span>
+        </div>
+      </div>
+
+      <!-- 手动输入表单 -->
+      <div class="aw-form-section">
+        <div class="aw-form-group">
+          <label class="aw-label" for="aw-en-input">英文</label>
+          <input type="text" class="input" id="aw-en-input" placeholder="输入英文单词或短语">
+        </div>
+        <div class="aw-form-group">
+          <label class="aw-label" for="aw-cn-input">中文</label>
+          <input type="text" class="input" id="aw-cn-input" placeholder="输入中文意思">
+        </div>
+        <div class="aw-form-group">
+          <label class="aw-label" for="aw-pron-input">音标（选填）</label>
+          <input type="text" class="input" id="aw-pron-input" placeholder="输入音标，如 /ˈæpəl/">
+        </div>
+        <button class="btn btn-secondary" data-action="add-to-batch" style="align-self: flex-start;">
+          <i data-lucide="plus" class="i-sm"></i>
+          <span>添加到列表</span>
+        </button>
+      </div>
+
+      <!-- 批量添加列表 -->
+      <div class="aw-batch-section">
+        <div class="aw-batch-header">
+          <h2 class="aw-batch-title">待添加列表</h2>
+          <span class="badge badge-primary" id="aw-batch-count">3</span>
+        </div>
+        <div class="aw-batch-list" id="aw-batch-list">
+          <!-- 示例待添加词 1 -->
+          <div class="aw-batch-item" data-batch-id="1">
+            <div class="aw-batch-word">
+              <span class="aw-batch-en">go to school</span>
+              <span class="aw-batch-cn">上学</span>
+            </div>
+            <button class="aw-delete-btn" data-action="delete-batch">删除</button>
+          </div>
+          <!-- 示例待添加词 2 -->
+          <div class="aw-batch-item" data-batch-id="2">
+            <div class="aw-batch-word">
+              <span class="aw-batch-en">apple</span>
+              <span class="aw-batch-cn">苹果</span>
+            </div>
+            <button class="aw-delete-btn" data-action="delete-batch">删除</button>
+          </div>
+          <!-- 示例待添加词 3 -->
+          <div class="aw-batch-item" data-batch-id="3">
+            <div class="aw-batch-word">
+              <span class="aw-batch-en">beautiful</span>
+              <span class="aw-batch-cn">美丽的</span>
+            </div>
+            <button class="aw-delete-btn" data-action="delete-batch">删除</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 保存到词库按钮 -->
+      <div class="aw-save-section">
+        <button class="btn btn-primary btn-block" data-action="save-words">
+          <i data-lucide="check" class="i-md"></i>
+          <span>保存到词库</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       页面 4: 学习 (study) — 全屏，无底部导航
+       ============================================================ -->
+  <section class="page fullscreen" id="page-study">
+    <div class="study-shell">
+      <!-- 顶部进度 -->
+      <div class="study-header">
+        <button class="study-close-btn" data-action="exit-study" aria-label="退出学习">
+          <i data-lucide="x"></i>
+        </button>
+        <span class="study-progress-text" id="study-progress-text">3/8</span>
+        <div class="study-progress-spacer"></div>
+      </div>
+
+      <!-- 顶部进度条 -->
+      <div class="study-top-progress">
+        <div class="progress-bar-thin">
+          <div class="progress-bar-fill" id="study-progress-fill" style="width: 37.5%;"></div>
+        </div>
+      </div>
+
+      <!-- 单词卡片区域 -->
+      <div class="study-word-area">
+        <div class="study-word-card">
+          <h1 class="study-word-english" id="study-word-en">beautiful</h1>
+          <p class="study-word-pron" id="study-word-pron">/ˈbjuːtɪfəl/</p>
+          <p class="study-word-chinese" id="study-word-cn">美丽的</p>
+        </div>
+      </div>
+
+      <!-- 朗读计数进度点 -->
+      <div class="reading-dots">
+        <div class="reading-dots-row" id="reading-dots-row">
+          <!-- 5个圆点，前2个已完成，第3个当前 -->
+          <span class="rdot rdot-done"></span>
+          <span class="rdot rdot-done"></span>
+          <span class="rdot rdot-current"></span>
+          <span class="rdot"></span>
+          <span class="rdot"></span>
+        </div>
+        <span class="reading-dots-text" id="reading-count-text">朗读 2/5 遍</span>
+      </div>
+
+      <!-- 提示文字 -->
+      <p class="text-center text-muted" style="padding: 0 16px 8px;">请大声朗读 5 遍</p>
+
+      <!-- 麦克风按钮区域 -->
+      <div class="study-mic-area">
+        <button class="mic-btn recording" id="study-mic-btn" aria-label="录音">
+          <i data-lucide="mic" class="i-2xl"></i>
+        </button>
+        <span class="mic-label" id="study-mic-label">正在聆听...</span>
+      </div>
+
+      <!-- 下一个按钮（5遍完成后显示） -->
+      <div class="study-next-area" id="study-next-area" style="display: none;">
+        <button class="btn btn-primary btn-block" data-action="next-word">
+          <span>下一个</span>
+          <i data-lucide="arrow-right" class="i-md"></i>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       页面 5: 学习完成 (study-complete) — 全屏，无底部导航
+       ============================================================ -->
+  <section class="page fullscreen" id="page-study-complete">
+    <div class="complete-shell">
+      <div class="complete-content">
+        <!-- 完成图标 -->
+        <div class="complete-icon-circle">
+          <i data-lucide="check"></i>
+        </div>
+
+        <!-- 标题 -->
+        <h1 class="complete-title">今日学习完成！</h1>
+        <p class="complete-subtitle">太棒了，你已完成今日学习</p>
+
+        <!-- 统计摘要 -->
+        <div class="complete-stats-card">
+          <div class="complete-stats-grid">
+            <div class="complete-stat-cell">
+              <div class="complete-stat-value" id="complete-study-count">5</div>
+              <div class="complete-stat-label">学习</div>
+            </div>
+            <div class="complete-stat-cell">
+              <div class="complete-stat-value" id="complete-review-count">3</div>
+              <div class="complete-stat-label">复习</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="complete-actions">
+          <button class="btn btn-primary btn-block" data-action="start-test">
+            <span>开始检测</span>
+            <i data-lucide="arrow-right" class="i-md"></i>
+          </button>
+          <button class="btn btn-ghost btn-block" data-action="back-home">
+            <span>返回首页</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       页面 6: 检测 (test) — 全屏，无底部导航
+       ============================================================ -->
+  <section class="page fullscreen" id="page-test">
+    <div class="test-shell">
+      <!-- 顶部进度 -->
+      <div class="test-header">
+        <button class="test-close-btn" data-action="exit-test" aria-label="退出检测">
+          <i data-lucide="x"></i>
+        </button>
+        <span class="test-progress-text" id="test-progress-text">3/8</span>
+        <span class="part-badge" id="test-part-badge">第二部分 · 中译英</span>
+      </div>
+
+      <!-- 顶部进度条 -->
+      <div class="test-top-progress">
+        <div class="progress-bar-thin">
+          <div class="progress-bar-fill" id="test-progress-fill" style="width: 37.5%;"></div>
+        </div>
+      </div>
+
+      <!-- 单词卡片 -->
+      <div class="test-card-area">
+        <div class="test-card">
+          <p class="test-part-label" id="test-part-label">请说出英文</p>
+          <h1 class="test-word" id="test-word">美丽的</h1>
+          <p class="test-instruction" id="test-instruction">大声说出英文（需与库中一致）</p>
+        </div>
+      </div>
+
+      <!-- 语音波形动画 -->
+      <div class="voice-wave" id="test-voice-wave" style="display: none;">
+        <span class="voice-wave-bar"></span>
+        <span class="voice-wave-bar"></span>
+        <span class="voice-wave-bar"></span>
+        <span class="voice-wave-bar"></span>
+        <span class="voice-wave-bar"></span>
+      </div>
+
+      <!-- 识别结果显示区域 -->
+      <div class="test-result-area" id="test-result-area">
+        <span class="test-result-text" id="test-result-text">请点击麦克风开始</span>
+      </div>
+
+      <!-- 麦克风按钮区域 -->
+      <div class="test-mic-area">
+        <button class="mic-btn" id="test-mic-btn" aria-label="录音检测">
+          <i data-lucide="mic" class="i-2xl"></i>
+        </button>
+        <span class="mic-label" id="test-mic-label">点击开始录音</span>
+      </div>
+
+      <!-- 下一个按钮 -->
+      <div class="test-next-area" id="test-next-area" style="display: none;">
+        <button class="btn btn-primary btn-block" data-action="next-test-word">
+          <span>下一个</span>
+          <i data-lucide="arrow-right" class="i-md"></i>
+        </button>
+      </div>
+
+      <!-- 跳过按钮 -->
+      <div class="test-skip-area">
+        <button class="test-skip-btn" data-action="skip-word">跳过本题</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       页面 7: 检测结果 (test-result) — 全屏，无底部导航
+       ============================================================ -->
+  <section class="page fullscreen" id="page-test-result">
+    <div class="result-shell">
+      <!-- 顶部导航 -->
+      <div class="result-header">
+        <button class="result-back-btn" data-action="back-home-from-result" aria-label="返回">
+          <i data-lucide="arrow-left"></i>
+        </button>
+        <h1 class="result-header-title">检测结果</h1>
+        <div style="width: 36px;"></div>
+      </div>
+
+      <div class="result-content">
+        <!-- 分数圆环 -->
+        <div class="score-section">
+          <div class="score-ring">
+            <svg viewBox="0 0 120 120">
+              <circle class="score-ring-bg" cx="60" cy="60" r="52"></circle>
+              <circle class="score-ring-fg" cx="60" cy="60" r="52"
+                stroke-dasharray="326.73"
+                stroke-dashoffset="81.68"
+                id="score-ring-fg"></circle>
+            </svg>
+            <div class="score-ring-text">
+              <span class="score-ring-value" id="score-value">75</span>
+              <span class="score-ring-label">分</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 答对/答错统计卡片 -->
+        <div class="result-stat-grid">
+          <div class="result-stat-card">
+            <i data-lucide="check-circle" class="i-xl" style="color: var(--state-success);"></i>
+            <div class="result-stat-number" id="result-correct-count">6</div>
+            <div class="result-stat-label">答对</div>
+          </div>
+          <div class="result-stat-card">
+            <i data-lucide="x-circle" class="i-xl" style="color: var(--state-error);"></i>
+            <div class="result-stat-number" id="result-wrong-count">2</div>
+            <div class="result-stat-label">答错</div>
+          </div>
+        </div>
+
+        <!-- 方向拆分 -->
+        <div class="direction-breakdown">
+          <div class="direction-row">
+            <span class="direction-label">英译中（看英文说中文）</span>
+            <span class="direction-result"><span style="color: var(--state-success); font-weight: 600;" id="dir-en-cn-correct">3</span> / <span id="dir-en-cn-total">4</span></span>
+          </div>
+          <div class="direction-row">
+            <span class="direction-label">中译英（看中文说英文）</span>
+            <span class="direction-result"><span style="color: var(--state-success); font-weight: 600;" id="dir-cn-en-correct">3</span> / <span id="dir-cn-en-total">4</span></span>
+          </div>
+        </div>
+
+        <!-- 掌握定义提示 -->
+        <div class="mastery-note">
+          <i data-lucide="badge-check"></i>
+          <p class="mastery-note-text">掌握 = 英译中且中译英均正确。已掌握的单词仍按艾宾浩斯曲线定期复习。</p>
+        </div>
+
+        <!-- 错题列表 -->
+        <div>
+          <div class="result-section-header">
+            <h2 class="section-title">错题回顾</h2>
+            <span class="badge badge-primary" id="result-error-count">2题</span>
+          </div>
+          <div class="result-list" id="result-error-list">
+            <!-- 错题 1 -->
+            <div class="result-error-card">
+              <div class="result-error-row">
+                <div class="result-error-content">
+                  <div class="result-error-word">beautiful</div>
+                  <div class="result-error-correct">正确答案：美丽的</div>
+                  <div class="result-error-user">
+                    <span class="result-error-user-label">你的回答：</span>
+                    <span class="result-error-user-value">好看的</span>
+                  </div>
+                </div>
+                <span class="badge badge-primary">明天复习</span>
+              </div>
+            </div>
+            <!-- 错题 2 -->
+            <div class="result-error-card">
+              <div class="result-error-row">
+                <div class="result-error-content">
+                  <div class="result-error-word">go to school</div>
+                  <div class="result-error-correct">正确答案：上学</div>
+                  <div class="result-error-user">
+                    <span class="result-error-user-label">你的回答：</span>
+                    <span class="result-error-user-value">去学校</span>
+                  </div>
+                </div>
+                <span class="badge badge-primary">明天复习</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 已掌握列表 -->
+        <div>
+          <div class="result-section-header">
+            <h2 class="section-title">已掌握</h2>
+            <span class="badge badge-success" id="result-mastered-count">2题</span>
+          </div>
+          <div class="result-list" id="result-mastered-list">
+            <!-- 已掌握 1 -->
+            <div class="result-mastered-card">
+              <div class="result-mastered-row">
+                <div class="result-mastered-content">
+                  <div class="result-mastered-word">apple</div>
+                  <div class="result-mastered-cn">苹果</div>
+                </div>
+                <span class="badge badge-success">7天后复习</span>
+              </div>
+            </div>
+            <!-- 已掌握 2 -->
+            <div class="result-mastered-card">
+              <div class="result-mastered-row">
+                <div class="result-mastered-content">
+                  <div class="result-mastered-word">run</div>
+                  <div class="result-mastered-cn">跑</div>
+                </div>
+                <span class="badge badge-success">7天后复习</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 复习说明 -->
+        <div class="review-note">
+          <i data-lucide="info"></i>
+          <p class="review-note-text">错题已加入错题本，将根据艾宾浩斯曲线自动安排复习；已掌握单词也将定期回顾。</p>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="result-actions">
+          <button class="btn btn-secondary btn-block" data-action="review-errors-from-result">
+            <i data-lucide="file-warning" class="i-sm"></i>
+            <span>查看错题本</span>
+          </button>
+          <button class="btn btn-primary btn-block" data-action="back-home-from-result">
+            <span>返回首页</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       页面 8: 错题本 (error-book) — 有底部导航
+       ============================================================ -->
+  <section class="page" id="page-error-book">
+    <!-- 标题 -->
+    <div class="error-header">
+      <div class="error-title-row">
+        <h1 class="error-title">错题本</h1>
+        <span class="badge badge-neutral" id="error-count-badge">共 5 题</span>
+      </div>
+      <button class="review-all-btn" data-action="review-all-errors">
+        <i data-lucide="refresh-cw"></i>
+        <span>全部复习</span>
+      </button>
+    </div>
+
+    <!-- 筛选标签 -->
+    <div class="filter-chips" id="error-filter-chips">
+      <button class="filter-chip active" data-filter="all">全部</button>
+      <button class="filter-chip" data-filter="today">今日待复习</button>
+      <button class="filter-chip" data-filter="mastered">已掌握</button>
+      <button class="filter-chip" data-filter="unmastered">未掌握</button>
+    </div>
+
+    <div class="page-content" style="padding-top: 8px;">
+      <!-- 掌握定义提示 -->
+      <div class="mastery-note mb-4">
+        <i data-lucide="badge-check"></i>
+        <p class="mastery-note-text">掌握 = 英译中且中译英均正确。已掌握的单词仍按艾宾浩斯曲线定期复习，防止遗忘。</p>
+      </div>
+
+      <!-- 错题卡片列表 -->
+      <div class="error-list" id="error-word-list">
+        <!-- 错题 1 -->
+        <div class="error-card" data-word-id="1">
+          <div class="error-card-text">
+            <div class="error-card-word">beautiful</div>
+            <div class="error-card-meaning">美丽的</div>
+          </div>
+          <div class="error-card-meta">
+            <span class="badge badge-warning">今日复习</span>
+            <span class="error-card-count">错 2 次</span>
+          </div>
+        </div>
+        <!-- 错题 2 -->
+        <div class="error-card" data-word-id="2">
+          <div class="error-card-text">
+            <div class="error-card-word">go to school</div>
+            <div class="error-card-meaning">上学</div>
+          </div>
+          <div class="error-card-meta">
+            <span class="badge badge-warning">今日复习</span>
+            <span class="error-card-count">错 1 次</span>
+          </div>
+        </div>
+        <!-- 错题 3 -->
+        <div class="error-card" data-word-id="3">
+          <div class="error-card-text">
+            <div class="error-card-word">elephant</div>
+            <div class="error-card-meaning">大象</div>
+          </div>
+          <div class="error-card-meta">
+            <span class="badge badge-primary">明日复习</span>
+            <span class="error-card-count">错 3 次</span>
+          </div>
+        </div>
+        <!-- 错题 4 -->
+        <div class="error-card" data-word-id="4">
+          <div class="error-card-text">
+            <div class="error-card-word">water</div>
+            <div class="error-card-meaning">水</div>
+          </div>
+          <div class="error-card-meta">
+            <span class="badge badge-neutral">3天后复习</span>
+            <span class="error-card-count">错 2 次</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       页面 9: 统计 (stats) — 有底部导航
+       ============================================================ -->
+  <section class="page" id="page-stats">
+    <div class="page-content">
+      <!-- 标题 -->
+      <div class="stats-header">
+        <h1 class="stats-title">学习统计</h1>
+        <p class="stats-subtitle">坚持学习，稳步进步</p>
+      </div>
+
+      <!-- 关键指标 -->
+      <div class="stats-metrics">
+        <div class="stats-metric-card">
+          <div class="stats-metric-value">
+            <span class="stats-metric-number" id="stats-total-words">42</span>
+            <span class="stats-metric-unit">个</span>
+          </div>
+          <p class="stats-metric-label">已学单词</p>
+        </div>
+        <div class="stats-metric-card">
+          <div class="stats-streak">
+            <i data-lucide="flame" class="stats-metric-icon i-lg"></i>
+            <div class="stats-metric-value">
+              <span class="stats-metric-number" id="stats-streak-days">7</span>
+              <span class="stats-metric-unit">天</span>
+            </div>
+          </div>
+          <p class="stats-metric-label">连续学习</p>
+        </div>
+      </div>
+
+      <!-- 遗忘曲线图 -->
+      <div class="stats-section">
+        <h2 class="stats-section-title">艾宾浩斯复习曲线</h2>
+        <div class="stats-chart-card">
+          <div class="stats-chart-container">
+            <div id="forgetting-curve"></div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--wb-border);">
+            <i data-lucide="clock" class="i-sm" style="color: var(--wb-primary);"></i>
+            <span style="font-size: 13px; color: var(--wb-muted-foreground);">下次复习：明日 <span style="color: var(--wb-foreground); font-weight: 600;">3</span> 个单词</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 掌握情况进度条 -->
+      <div class="stats-section">
+        <h2 class="stats-section-title">掌握情况</h2>
+        <div class="stats-chart-card">
+          <div class="mastery-progress">
+            <!-- 已掌握 -->
+            <div class="mastery-progress-item">
+              <div class="mastery-progress-header">
+                <span class="mastery-progress-label">已掌握</span>
+                <span class="mastery-progress-value">25/42 (59%)</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-bar-fill" style="width: 59%; background-color: var(--state-success);"></div>
+              </div>
+            </div>
+            <!-- 学习中 -->
+            <div class="mastery-progress-item">
+              <div class="mastery-progress-header">
+                <span class="mastery-progress-label">学习中</span>
+                <span class="mastery-progress-value">12/42 (29%)</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-bar-fill" style="width: 29%; background-color: var(--wb-primary);"></div>
+              </div>
+            </div>
+            <!-- 未掌握 -->
+            <div class="mastery-progress-item">
+              <div class="mastery-progress-header">
+                <span class="mastery-progress-label">未掌握</span>
+                <span class="mastery-progress-value">5/42 (12%)</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-bar-fill" style="width: 12%; background-color: var(--state-error);"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 掌握定义提示 -->
+        <div class="mastery-note" style="margin-top: 12px;">
+          <i data-lucide="badge-check"></i>
+          <p class="mastery-note-text">掌握 = 英译中且中译英均正确。已掌握的单词仍按艾宾浩斯曲线定期复习，防止遗忘。</p>
+        </div>
+      </div>
+
+      <!-- 最近7天学习记录 -->
+      <div class="stats-section">
+        <h2 class="stats-section-title">本周学习</h2>
+        <div class="stats-chart-card">
+          <!-- 柱状图 -->
+          <div class="weekly-chart">
+            <div class="weekly-bar-track">
+              <div class="weekly-bar" style="height: 80%;"></div>
+            </div>
+            <div class="weekly-bar-track">
+              <div class="weekly-bar" style="height: 50%;"></div>
+            </div>
+            <div class="weekly-bar-track">
+              <div class="weekly-bar" style="height: 100%;"></div>
+            </div>
+            <div class="weekly-bar-track">
+              <div class="weekly-bar" style="height: 30%;"></div>
+            </div>
+            <div class="weekly-bar-track">
+              <div class="weekly-bar" style="height: 70%;"></div>
+            </div>
+            <div class="weekly-bar-track">
+              <div class="weekly-bar weekly-bar-empty" style="height: 2%;"></div>
+            </div>
+            <div class="weekly-bar-track">
+              <div class="weekly-bar" style="height: 60%;"></div>
+            </div>
+          </div>
+          <!-- 星期标签 -->
+          <div class="weekly-labels">
+            <span class="weekly-label">一</span>
+            <span class="weekly-label">二</span>
+            <span class="weekly-label">三</span>
+            <span class="weekly-label">四</span>
+            <span class="weekly-label">五</span>
+            <span class="weekly-label">六</span>
+            <span class="weekly-label">日</span>
+          </div>
+          <!-- 汇总 -->
+          <div class="weekly-summary">
+            <span class="weekly-summary-item">本周共学 <span style="color: var(--wb-foreground); font-weight: 600;">39</span> 个</span>
+            <span class="weekly-summary-item">日均 <span style="color: var(--wb-foreground); font-weight: 600;">5.6</span> 个</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       底部导航（共享组件，JS 控制显隐和 active 状态）
+       ============================================================ -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <div class="bottom-nav-inner">
+      <a class="nav-item active" data-nav="home" data-action="goto-home">
+        <i data-lucide="home" class="nav-item-icon"></i>
+        <span class="nav-item-label">首页</span>
+      </a>
+      <a class="nav-item" data-nav="library" data-action="goto-library">
+        <i data-lucide="book-open" class="nav-item-icon"></i>
+        <span class="nav-item-label">词库</span>
+      </a>
+      <a class="nav-item" data-nav="error-book" data-action="goto-error-book">
+        <i data-lucide="file-warning" class="nav-item-icon"></i>
+        <span class="nav-item-label">错题</span>
+      </a>
+      <a class="nav-item" data-nav="stats" data-action="goto-stats">
+        <i data-lucide="bar-chart-2" class="nav-item-icon"></i>
+        <span class="nav-item-label">统计</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- ============================================================
+       轻提示 Toast
+       ============================================================ -->
+  <div class="toast" id="toast"></div>
+
+  <!-- ============================================================
+       模态框 Modal
+       ============================================================ -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <h3 class="modal-title" id="modal-title">提示</h3>
+      <p class="modal-body" id="modal-body">确定要执行此操作吗？</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="modal-cancel">取消</button>
+        <button class="btn btn-primary" id="modal-confirm">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       加载动画 Spinner
+       ============================================================ -->
+  <div class="spinner-overlay" id="spinner-overlay">
+    <div class="spinner"></div>
+    <p class="spinner-text" id="spinner-text">加载中...</p>
+  </div>
+
+  <!-- ============================================================
+       先初始化 Lucide icons
+       ============================================================ -->
+  <script>
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+  </script>
+
+  <!-- ============================================================
+       JS 文件（按顺序加载）
+       ============================================================ -->
+  <script src="js/db.js?v=2"></script>
+  <script src="js/ebbinghaus.js?v=2"></script>
+  <script src="js/voice.js?v=2"></script>
+  <script src="js/ocr.js?v=2"></script>
+  <script src="js/study.js?v=2"></script>
+  <script src="js/test.js?v=2"></script>
+  <script src="js/stats.js?v=2"></script>
+  <script src="js/app.js?v=2"></script>
+
+</body>
+</html>
