@@ -325,7 +325,10 @@ const App = {
           '<span class="lib-word">' + self.escapeHtml(word.english) + '</span>' +
           '<span class="lib-meaning">' + self.escapeHtml(word.chinese) + '</span>' +
           '</div>' +
+          '<div style="display:flex;align-items:center;gap:8px;">' +
           '<span class="badge ' + badgeClass + '">' + badgeText + '</span>' +
+          '<button class="aw-delete-btn" data-action="delete-library-word" style="font-size:12px;padding:4px 8px;">删除</button>' +
+          '</div>' +
           '</div>'
         );
       }).join('');
@@ -585,14 +588,14 @@ const App = {
       }
 
       // === 添加单词页：拍照 ===
-      if (target.closest('[data-action="camera-capture"], .aw-camera-btn')) {
+      if (target.closest('[data-action="take-photo"], [data-action="camera-capture"], .aw-camera-btn')) {
         e.preventDefault();
         self.handleCameraCapture();
         return;
       }
 
       // === 添加单词页：导入图片 ===
-      if (target.closest('[data-action="file-import"], .aw-import-btn')) {
+      if (target.closest('[data-action="import-image"], [data-action="file-import"], .aw-import-btn')) {
         e.preventDefault();
         self.handleFileImport();
         return;
@@ -620,6 +623,22 @@ const App = {
         return;
       }
 
+      // === 词库页：删除单词 ===
+      var libDeleteBtn = target.closest('[data-action="delete-library-word"]');
+      if (libDeleteBtn) {
+        e.preventDefault();
+        var libCard = libDeleteBtn.closest('.lib-card');
+        if (libCard) {
+          var wordId = parseInt(libCard.getAttribute('data-word-id'), 10);
+          if (!isNaN(wordId)) {
+            if (window.confirm('确定要删除这个单词吗？')) {
+              self.handleDeleteWord(wordId);
+            }
+          }
+        }
+        return;
+      }
+
       // === 添加单词页：保存到单词库 ===
       if (target.closest('[data-action="save-words"], .aw-save-btn')) {
         e.preventDefault();
@@ -639,6 +658,15 @@ const App = {
         e.preventDefault();
         if (self.study && !self.study.isListening && self.study.readCount < 5) {
           self.study.startListening();
+        }
+        return;
+      }
+
+      // === 学习页：手动"已读一遍" ===
+      if (target.closest('[data-action="manual-read-once"], #study-manual-btn')) {
+        e.preventDefault();
+        if (self.study && self.study.readCount < 5) {
+          self.study.incrementReadCount();
         }
         return;
       }
@@ -755,9 +783,8 @@ const App = {
    */
   async handleCameraCapture() {
     try {
-      this.showLoading('正在拍照...');
+      // 不在拍照前显示 loading，避免遮挡摄像头 UI
       var blob = await this.ocr.captureFromCamera();
-      this.hideLoading();
 
       this.showLoading('正在识别...');
       var words = await this.ocr.recognize(blob);
@@ -796,9 +823,8 @@ const App = {
    */
   async handleFileImport() {
     try {
-      this.showLoading('正在导入...');
+      // 不在文件选择前显示 loading，避免遮挡文件选择器
       var blob = await this.ocr.importFromFile();
-      this.hideLoading();
 
       this.showLoading('正在识别...');
       var words = await this.ocr.recognize(blob);
@@ -939,6 +965,23 @@ const App = {
   },
 
   /**
+   * 删除词库中的单词
+   */
+  async handleDeleteWord(wordId) {
+    try {
+      this.showLoading('正在删除...');
+      await this.db.deleteWord(wordId);
+      this.hideLoading();
+      this.showToast('已删除', 'success');
+      await this.renderLibrary();
+    } catch (err) {
+      this.hideLoading();
+      console.error('删除单词失败:', err);
+      this.showToast('删除失败', 'error');
+    }
+  },
+
+  /**
    * 处理词库搜索
    */
   async handleLibrarySearch(keyword) {
@@ -984,7 +1027,10 @@ const App = {
           '<span class="lib-word">' + self.escapeHtml(word.english) + '</span>' +
           '<span class="lib-meaning">' + self.escapeHtml(word.chinese) + '</span>' +
           '</div>' +
+          '<div style="display:flex;align-items:center;gap:8px;">' +
           '<span class="badge ' + badgeClass + '">' + badgeText + '</span>' +
+          '<button class="aw-delete-btn" data-action="delete-library-word" style="font-size:12px;padding:4px 8px;">删除</button>' +
+          '</div>' +
           '</div>'
         );
       }).join('');
