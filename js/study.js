@@ -77,22 +77,22 @@ class StudyController {
     if (!page) return;
 
     // 更新进度：当前序号/总数
-    const progressText = page.querySelector('.study-header span');
+    const progressText = page.querySelector('#study-progress-text, .study-header span');
     if (progressText) {
       progressText.textContent = `${this.currentIndex + 1} / ${this.queue.length}`;
     }
 
     // 更新进度条
-    const progressFill = page.querySelector('.study-progress-fill');
+    const progressFill = page.querySelector('#study-progress-fill, .study-progress-fill');
     if (progressFill) {
       const percent = ((this.currentIndex + 1) / this.queue.length) * 100;
       progressFill.style.width = percent + '%';
     }
 
-    // 显示英文（大字）、音标、中文
-    const wordEl = page.querySelector('.word-english');
-    const chineseEl = page.querySelector('.word-chinese');
-    const pronEl = page.querySelector('.word-pron');
+    // 显示英文（大字）、音标、中文 — 使用 HTML 中实际的 id
+    const wordEl = page.querySelector('#study-word-en, .study-word-english');
+    const chineseEl = page.querySelector('#study-word-cn, .study-word-chinese');
+    const pronEl = page.querySelector('#study-word-pron, .study-word-pron');
 
     if (wordEl) wordEl.textContent = word.english || '';
     if (chineseEl) chineseEl.textContent = word.chinese || '';
@@ -108,18 +108,18 @@ class StudyController {
     this.updateReadingDots();
 
     // 隐藏"下一个"按钮
-    const nextArea = page.querySelector('.next-area, #study-next-area');
+    const nextArea = page.querySelector('#study-next-area, .study-next-area, .next-area');
     if (nextArea) nextArea.style.display = 'none';
 
     // 显示麦克风区域
-    const micArea = page.querySelector('.mic-area, .study-mic-area');
+    const micArea = page.querySelector('.study-mic-area, .mic-area');
     if (micArea) micArea.style.display = '';
 
     // 重置麦克风按钮状态
-    const micBtn = page.querySelector('.mic-btn');
+    const micBtn = page.querySelector('#study-mic-btn, .mic-btn');
     if (micBtn) micBtn.classList.remove('mic-btn--active');
 
-    const micLabel = page.querySelector('.mic-area span, #study-mic-label');
+    const micLabel = page.querySelector('#study-mic-label, .mic-label, .mic-area span');
     if (micLabel) {
       micLabel.textContent = '点击麦克风开始朗读';
       micLabel.style.color = 'var(--wb-muted-foreground)';
@@ -161,7 +161,7 @@ class StudyController {
     const page = document.getElementById('page-study');
     if (!page) return;
 
-    const dotsContainer = page.querySelector('.reading-dots-row');
+    const dotsContainer = page.querySelector('#reading-dots-row, .reading-dots-row');
     if (!dotsContainer) return;
 
     const dots = dotsContainer.querySelectorAll('.rdot');
@@ -177,13 +177,10 @@ class StudyController {
       }
     });
 
-    // 更新朗读计数文本
-    const readingSection = dotsContainer.parentElement;
-    if (readingSection) {
-      const readingText = readingSection.querySelector('span');
-      if (readingText) {
-        readingText.textContent = `朗读 ${this.readCount}/5 遍`;
-      }
+    // 更新朗读计数文本 — 使用 HTML 中实际的 id
+    const readingText = page.querySelector('#reading-count-text, .reading-dots-text');
+    if (readingText) {
+      readingText.textContent = `朗读 ${this.readCount}/5 遍`;
     }
   }
 
@@ -216,11 +213,11 @@ class StudyController {
     this.isListening = true;
 
     // 更新麦克风按钮状态（添加录音动画）
-    const micBtn = page.querySelector('.mic-btn');
+    const micBtn = page.querySelector('#study-mic-btn, .mic-btn');
     if (micBtn) micBtn.classList.add('mic-btn--active');
 
     // 更新麦克风标签
-    const micLabel = page.querySelector('.mic-area span');
+    const micLabel = page.querySelector('#study-mic-label, .mic-label');
     if (micLabel) {
       micLabel.textContent = '正在聆听...';
       micLabel.style.color = 'var(--wb-muted-foreground)';
@@ -296,7 +293,7 @@ class StudyController {
     if (!page) return;
 
     // 移除麦克风录音动画
-    const micBtn = page.querySelector('.mic-btn');
+    const micBtn = page.querySelector('#study-mic-btn, .mic-btn');
     if (micBtn) micBtn.classList.remove('mic-btn--active');
 
     // 隐藏手动按钮
@@ -304,14 +301,14 @@ class StudyController {
     if (manualArea) manualArea.style.display = 'none';
 
     // 更新麦克风标签
-    const micLabel = page.querySelector('.mic-area span');
+    const micLabel = page.querySelector('#study-mic-label, .mic-label');
     if (micLabel) {
       micLabel.textContent = '朗读完成！';
       micLabel.style.color = 'var(--state-success)';
     }
 
     // 显示"下一个"按钮
-    const nextArea = page.querySelector('.next-area');
+    const nextArea = page.querySelector('#study-next-area, .study-next-area');
     if (nextArea) nextArea.style.display = '';
 
     // 更新所有进度点为已完成
@@ -322,12 +319,9 @@ class StudyController {
     });
 
     // 更新朗读文本
-    const dotsContainer = page.querySelector('.reading-dots-row');
-    if (dotsContainer && dotsContainer.parentElement) {
-      const readingText = dotsContainer.parentElement.querySelector('span');
-      if (readingText) {
-        readingText.textContent = '朗读完成 5/5 遍';
-      }
+    const readingText = page.querySelector('#reading-count-text, .reading-dots-text');
+    if (readingText) {
+      readingText.textContent = '朗读完成 5/5 遍';
     }
 
     // 1.5秒后自动跳转到下一个单词
