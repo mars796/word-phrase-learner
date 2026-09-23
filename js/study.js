@@ -129,9 +129,15 @@ class StudyController {
     const manualArea = page.querySelector('#study-manual-area');
     if (manualArea) {
       if (window.voice && window.voice.isSupported()) {
-        // 支持语音：隐藏手动按钮，启动语音监听
+        // 支持语音：隐藏手动按钮，等待用户点击麦克风
         manualArea.style.display = 'none';
-        this.startListening();
+        // 不自动启动监听，等用户点击麦克风
+        this.isListening = false;
+        const micLabel2 = page.querySelector('#study-mic-label');
+        if (micLabel2) {
+          micLabel2.textContent = '点击麦克风开始朗读';
+          micLabel2.style.color = 'var(--wb-muted-foreground)';
+        }
       } else {
         // 不支持语音：显示手动按钮，隐藏麦克风
         manualArea.style.display = '';
@@ -142,8 +148,8 @@ class StudyController {
         }
       }
     } else {
-      // 没有手动按钮元素，直接启动监听
-      this.startListening();
+      // 没有手动按钮元素，不自动启动
+      this.isListening = false;
     }
   }
 
@@ -323,6 +329,11 @@ class StudyController {
         readingText.textContent = '朗读完成 5/5 遍';
       }
     }
+
+    // 1.5秒后自动跳转到下一个单词
+    setTimeout(() => {
+      this.completeCurrentWord();
+    }, 1500);
   }
 
   /**
