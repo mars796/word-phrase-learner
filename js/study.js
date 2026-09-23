@@ -108,25 +108,43 @@ class StudyController {
     this.updateReadingDots();
 
     // 隐藏"下一个"按钮
-    const nextArea = page.querySelector('.next-area');
+    const nextArea = page.querySelector('.next-area, #study-next-area');
     if (nextArea) nextArea.style.display = 'none';
 
     // 显示麦克风区域
-    const micArea = page.querySelector('.mic-area');
+    const micArea = page.querySelector('.mic-area, .study-mic-area');
     if (micArea) micArea.style.display = '';
 
     // 重置麦克风按钮状态
     const micBtn = page.querySelector('.mic-btn');
     if (micBtn) micBtn.classList.remove('mic-btn--active');
 
-    const micLabel = page.querySelector('.mic-area span');
+    const micLabel = page.querySelector('.mic-area span, #study-mic-label');
     if (micLabel) {
       micLabel.textContent = '点击麦克风开始朗读';
       micLabel.style.color = 'var(--wb-muted-foreground)';
     }
 
-    // 启动语音监听
-    this.startListening();
+    // 检查语音支持，决定是否显示手动按钮
+    const manualArea = page.querySelector('#study-manual-area');
+    if (manualArea) {
+      if (window.voice && window.voice.isSupported()) {
+        // 支持语音：隐藏手动按钮，启动语音监听
+        manualArea.style.display = 'none';
+        this.startListening();
+      } else {
+        // 不支持语音：显示手动按钮，隐藏麦克风
+        manualArea.style.display = '';
+        if (micArea) micArea.style.display = 'none';
+        if (micLabel) {
+          micLabel.textContent = '语音功能不可用，请手动点击';
+          micLabel.style.color = 'var(--wb-muted-foreground)';
+        }
+      }
+    } else {
+      // 没有手动按钮元素，直接启动监听
+      this.startListening();
+    }
   }
 
   /**
@@ -274,6 +292,10 @@ class StudyController {
     // 移除麦克风录音动画
     const micBtn = page.querySelector('.mic-btn');
     if (micBtn) micBtn.classList.remove('mic-btn--active');
+
+    // 隐藏手动按钮
+    const manualArea = page.querySelector('#study-manual-area');
+    if (manualArea) manualArea.style.display = 'none';
 
     // 更新麦克风标签
     const micLabel = page.querySelector('.mic-area span');
