@@ -172,6 +172,9 @@ const App = {
       case 'library':
         await this.renderLibrary();
         break;
+      case 'add-words':
+        this.renderRecognizedWords();
+        break;
       case 'error-book':
         await this.renderErrorBook();
         break;
@@ -602,17 +605,18 @@ const App = {
       }
 
       // === 添加单词页：手动添加 ===
-      if (target.closest('[data-action="manual-add"], .aw-manual-add-btn')) {
+      if (target.closest('[data-action="manual-add"], [data-action="add-to-batch"], .aw-manual-add-btn')) {
         e.preventDefault();
         self.handleManualAdd();
         return;
       }
 
       // === 添加单词页：删除已识别单词 ===
-      var deleteBtn = target.closest('[data-action="delete-word"], .aw-delete-btn');
+      var deleteBtn = target.closest('[data-action="delete-word"], [data-action="delete-batch"], .aw-delete-btn');
       if (deleteBtn) {
         e.preventDefault();
-        var wordCard = deleteBtn.closest('.aw-word-card');
+        // 同时查找 .aw-word-card 和 .aw-batch-item 父元素
+        var wordCard = deleteBtn.closest('.aw-word-card, .aw-batch-item');
         if (wordCard) {
           var index = parseInt(wordCard.getAttribute('data-index'), 10);
           if (!isNaN(index)) {
@@ -654,10 +658,23 @@ const App = {
       }
 
       // === 学习页：麦克风按钮 ===
-      if (target.closest('[data-action="mic-button"], .study-mic-btn')) {
+      if (target.closest('[data-action="mic-button"], .study-mic-btn, #study-mic-btn, .mic-btn')) {
         e.preventDefault();
-        if (self.study && !self.study.isListening && self.study.readCount < 5) {
-          self.study.startListening();
+        if (self.study) {
+          // 如果正在监听，停止；否则开始
+          if (self.study.isListening) {
+            self.study.isListening = false;
+            window.voice.stopListening();
+            const micBtn = document.querySelector('#study-mic-btn');
+            if (micBtn) micBtn.classList.remove('mic-btn--active');
+            const micLabel = document.querySelector('#study-mic-label');
+            if (micLabel) {
+              micLabel.textContent = '点击麦克风开始朗读';
+              micLabel.style.color = 'var(--wb-muted-foreground)';
+            }
+          } else if (self.study.readCount < 5) {
+            self.study.startListening();
+          }
         }
         return;
       }
@@ -898,8 +915,9 @@ const App = {
     var page = document.getElementById('page-add-words');
     if (!page) return;
 
-    var listContainer = page.querySelector('.aw-word-list');
-    var countBadge = page.querySelector('.aw-count-badge');
+    // 同时查找两种 class 名称，兼容 HTML 中的 .aw-batch-list 和 JS 原先的 .aw-word-list
+    var listContainer = page.querySelector('.aw-batch-list, .aw-word-list');
+    var countBadge = page.querySelector('#aw-batch-count, .aw-count-badge');
 
     if (countBadge) {
       countBadge.textContent = String(this._recognizedWords.length);
@@ -917,11 +935,12 @@ const App = {
     var self = this;
     var html = this._recognizedWords.map(function (word, index) {
       return (
-        '<div class="aw-word-card" data-index="' + index + '">' +
-        '<div><div class="aw-word-en">' + self.escapeHtml(word.english) +
-        '</div><div class="aw-word-cn">' + self.escapeHtml(word.chinese) +
-        '</div></div>' +
-        '<button class="aw-delete-btn" data-action="delete-word">删除</button>' +
+        '<div class="aw-batch-item" data-index="' + index + '">' +
+        '<div class="aw-batch-word">' +
+        '<span class="aw-batch-en">' + self.escapeHtml(word.english) + '</span>' +
+        '<span class="aw-batch-cn">' + self.escapeHtml(word.chinese) + '</span>' +
+        '</div>' +
+        '<button class="aw-delete-btn" data-action="delete-batch">删除</button>' +
         '</div>'
       );
     }).join('');
