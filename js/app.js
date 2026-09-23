@@ -327,7 +327,7 @@ const App = {
           '</div>' +
           '<div style="display:flex;align-items:center;gap:8px;">' +
           '<span class="badge ' + badgeClass + '">' + badgeText + '</span>' +
-          '<button class="aw-delete-btn" data-action="delete-library-word" style="font-size:12px;padding:4px 8px;">删除</button>' +
+          '<button class="lib-delete-btn" data-action="delete-library-word" style="font-size:12px;padding:4px 8px;border:none;border-radius:6px;background:#fee2e2;color:#dc2626;cursor:pointer;">删除</button>' +
           '</div>' +
           '</div>'
         );
@@ -1029,7 +1029,7 @@ const App = {
           '</div>' +
           '<div style="display:flex;align-items:center;gap:8px;">' +
           '<span class="badge ' + badgeClass + '">' + badgeText + '</span>' +
-          '<button class="aw-delete-btn" data-action="delete-library-word" style="font-size:12px;padding:4px 8px;">删除</button>' +
+          '<button class="lib-delete-btn" data-action="delete-library-word" style="font-size:12px;padding:4px 8px;border:none;border-radius:6px;background:#fee2e2;color:#dc2626;cursor:pointer;">删除</button>' +
           '</div>' +
           '</div>'
         );
