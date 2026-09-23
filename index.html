@@ -325,6 +325,14 @@
         <span class="mic-label" id="study-mic-label">正在聆听...</span>
       </div>
 
+      <!-- 手动"已读一遍"按钮（语音不支持时的 fallback） -->
+      <div class="study-manual-area" id="study-manual-area" style="display:none;padding:12px 16px;">
+        <button class="btn btn-secondary btn-block" data-action="manual-read-once" id="study-manual-btn">
+          <i data-lucide="check" class="i-md"></i>
+          <span>已读一遍</span>
+        </button>
+      </div>
+
       <!-- 下一个按钮（5遍完成后显示） -->
       <div class="study-next-area" id="study-next-area" style="display: none;">
         <button class="btn btn-primary btn-block" data-action="next-word">
