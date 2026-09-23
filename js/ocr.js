@@ -198,7 +198,8 @@
       var input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
-      input.style.cssText = 'display: none;';
+      // 移动端 Safari 需要元素在 DOM 中且可见才能触发文件选择器
+      input.style.cssText = 'position:absolute;top:-100px;left:-100px;width:1px;height:1px;opacity:0;';
 
       input.onchange = function (e) {
         var file = e.target.files[0];
