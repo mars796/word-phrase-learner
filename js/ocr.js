@@ -8,13 +8,8 @@
 (function (global) {
   'use strict';
 
-  /**
-   * OCRController — OCR 识别控制器
-   * 提供拍照、文件导入、OCR 识别和编辑确认功能
-   */
   function OCRController() {
     this._tesseractLoaded = false;
-    this._worker = null;
     this._cameraStream = null;
     this._overlayId = 'wb-camera-overlay';
     this._dialogId = 'wb-ocr-dialog';
@@ -22,31 +17,24 @@
 
   /**
    * 从摄像头拍照
-   * 创建全屏拍照界面，用户点击拍照按钮后截取画面
-   * @returns {Promise<Blob>} 图片数据
    */
   OCRController.prototype.captureFromCamera = function () {
     var self = this;
 
     return new Promise(function (resolve, reject) {
-      // 检查是否已有打开的拍照界面
       if (document.getElementById(self._overlayId)) {
         reject(new Error('拍照界面已打开'));
         return;
       }
 
-      // 创建全屏覆盖层
       var overlay = self._createCameraOverlay(resolve, reject);
       document.body.appendChild(overlay);
 
       var video = overlay.querySelector('video');
 
-      // 请求摄像头权限
       navigator.mediaDevices
         .getUserMedia({
-          video: {
-            facingMode: 'environment', // 优先后置摄像头
-          },
+          video: { facingMode: 'environment' },
           audio: false,
         })
         .then(function (stream) {
@@ -56,7 +44,6 @@
           video.play().catch(function () {});
         })
         .catch(function (err) {
-          // 移除覆盖层
           if (overlay.parentNode) {
             overlay.parentNode.removeChild(overlay);
           }
@@ -67,9 +54,6 @@
 
   /**
    * 创建拍照覆盖层 UI
-   * @param {Function} resolve - Promise resolve
-   * @param {Function} reject - Promise reject
-   * @returns {HTMLElement} 覆盖层 DOM 元素
    */
   OCRController.prototype._createCameraOverlay = function (resolve, reject) {
     var self = this;
@@ -90,7 +74,6 @@
       'justify-content: center',
     ].join(';');
 
-    // 视频预览
     var video = document.createElement('video');
     video.style.cssText = [
       'width: 100%',
@@ -101,7 +84,6 @@
     video.autoplay = true;
     overlay.appendChild(video);
 
-    // 底部控制栏
     var controls = document.createElement('div');
     controls.style.cssText = [
       'position: absolute',
@@ -117,7 +99,6 @@
     ].join(';');
     overlay.appendChild(controls);
 
-    // 取消按钮
     var cancelBtn = document.createElement('button');
     cancelBtn.textContent = '取消';
     cancelBtn.style.cssText = self._btnStyle('#78716c', '#ffffff');
@@ -127,7 +108,6 @@
     };
     controls.appendChild(cancelBtn);
 
-    // 拍照按钮（中间大圆按钮）
     var captureBtn = document.createElement('button');
     captureBtn.textContent = '拍照';
     captureBtn.style.cssText = [
@@ -146,7 +126,6 @@
       'font-family: "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif',
     ].join(';');
     captureBtn.onclick = function () {
-      // 从视频截取画面
       var canvas = document.createElement('canvas');
       canvas.width = video.videoWidth || 1080;
       canvas.height = video.videoHeight || 1920;
@@ -160,7 +139,6 @@
     };
     controls.appendChild(captureBtn);
 
-    // 占位（保持两侧对称）
     var placeholder = document.createElement('div');
     placeholder.style.cssText = 'width: 80px; flex-shrink: 0;';
     controls.appendChild(placeholder);
@@ -172,15 +150,12 @@
    * 关闭摄像头和覆盖层
    */
   OCRController.prototype._closeCamera = function (overlay) {
-    // 停止摄像头流
     if (this._cameraStream) {
       this._cameraStream.getTracks().forEach(function (track) {
         track.stop();
       });
       this._cameraStream = null;
     }
-
-    // 移除覆盖层
     if (overlay && overlay.parentNode) {
       overlay.parentNode.removeChild(overlay);
     }
@@ -188,8 +163,6 @@
 
   /**
    * 从文件导入
-   * 创建隐藏的 file input，用户选择文件后返回 Blob
-   * @returns {Promise<Blob>} 图片数据
    */
   OCRController.prototype.importFromFile = function () {
     var self = this;
@@ -198,7 +171,6 @@
       var input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
-      // 移动端 Safari 需要元素在 DOM 中且可见才能触发文件选择器
       input.style.cssText = 'position:absolute;top:-100px;left:-100px;width:1px;height:1px;opacity:0;';
 
       input.onchange = function (e) {
@@ -208,13 +180,11 @@
         } else {
           reject(new Error('用户未选择文件'));
         }
-        // 清理 input 元素
         if (input.parentNode) {
           input.parentNode.removeChild(input);
         }
       };
 
-      // 取消选择的情况
       input.oncancel = function () {
         reject(new Error('用户取消选择文件'));
       };
@@ -225,123 +195,19 @@
   };
 
   /**
-   * OCR 识别图片中的单词
-   * 使用 Tesseract.js 先用英文识别提取英文单词，再用中文识别提取中文意思
-   * 然后按行配对返回结果
-   * @param {Blob} imageBlob - 图片数据
-   * @returns {Promise<Array<{english: string, chinese: string}>>}
-   */
-  OCRController.prototype.recognize = function (imageBlob) {
-    var self = this;
-
-    // 加载 Tesseract.js 脚本
-    return this.loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js')
-      .then(function () {
-        var imageUrl = URL.createObjectURL(imageBlob);
-
-        // 先用英文识别
-        return self._recognizeWithLang(imageUrl, 'eng').then(function (engResult) {
-          // 再用中文识别
-          return self._recognizeWithLang(imageUrl, 'chi_sim').then(function (chiResult) {
-            URL.revokeObjectURL(imageUrl);
-            // 配对英文和中文
-            return self._pairResults(engResult, chiResult);
-          });
-        });
-      })
-      .catch(function (err) {
-        console.error('[OCRController] OCR 识别失败:', err);
-        throw err;
-      });
-  };
-
-  /**
-   * 使用指定语言进行 OCR 识别
-   * @param {string} imageUrl - 图片 URL
-   * @param {string} lang - 语言代码 'eng' 或 'chi_sim'
-   * @returns {Promise<string>} 识别的文本
-   */
-  OCRController.prototype._recognizeWithLang = function (imageUrl, lang) {
-    return new Promise(function (resolve, reject) {
-      // 创建 Tesseract worker
-      var worker = new Tesseract.Worker();
-
-      worker
-        .loadLanguage(lang)
-        .then(function () {
-          return worker.initialize(lang);
-        })
-        .then(function () {
-          return worker.recognize(imageUrl);
-        })
-        .then(function (result) {
-          var text = (result && result.data && result.data.text) || '';
-          worker.terminate();
-          resolve(text);
-        })
-        .catch(function (err) {
-          worker.terminate();
-          reject(err);
-        });
-    });
-  };
-
-  /**
-   * 配对英文和中文识别结果
-   * 按行配对，英文行和中文行交替出现
-   * @param {string} engText - 英文识别结果
-   * @param {string} chiText - 中文识别结果
-   * @returns {Array<{english: string, chinese: string}>}
-   */
-  OCRController.prototype._pairResults = function (engText, chiText) {
-    var engLines = (engText || '')
-      .split('\n')
-      .map(function (l) { return l.trim(); })
-      .filter(function (l) { return l.length > 0; });
-
-    var chiLines = (chiText || '')
-      .split('\n')
-      .map(function (l) { return l.trim(); })
-      .filter(function (l) { return l.length > 0; });
-
-    var results = [];
-    var maxLen = Math.max(engLines.length, chiLines.length);
-
-    for (var i = 0; i < maxLen; i++) {
-      var english = engLines[i] || '';
-      var chinese = chiLines[i] || '';
-
-      // 至少有一个非空才添加
-      if (english || chinese) {
-        results.push({
-          english: english,
-          chinese: chinese,
-        });
-      }
-    }
-
-    return results;
-  };
-
-  /**
    * 动态加载脚本
-   * @param {string} url - 脚本 URL
-   * @returns {Promise<void>}
    */
   OCRController.prototype.loadScript = function (url) {
     var self = this;
 
     return new Promise(function (resolve, reject) {
-      // 检查是否已加载
       var existing = document.querySelector('script[src="' + url + '"]');
       if (existing) {
-        // 如果已加载且 Tesseract 已定义
         if (global.Tesseract) {
           self._tesseractLoaded = true;
           resolve();
           return;
         }
-        // 等待已存在的 script 加载完成
         existing.onload = function () {
           self._tesseractLoaded = true;
           resolve();
@@ -371,16 +237,163 @@
   };
 
   /**
+   * 尝试从多个 CDN 加载 Tesseract.js
+   */
+  OCRController.prototype._loadTesseract = function () {
+    var self = this;
+    var cdnUrls = [
+      'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
+      'https://unpkg.com/tesseract.js@5/dist/tesseract.min.js',
+      'https://cdn.bootcdn.net/ajax/libs/tesseract.js/5.0.4/tesseract.min.js',
+    ];
+
+    function tryLoad(index) {
+      if (index >= cdnUrls.length) {
+        return Promise.reject(new Error('所有 CDN 加载失败，请检查网络连接'));
+      }
+      return self.loadScript(cdnUrls[index]).catch(function () {
+        return tryLoad(index + 1);
+      });
+    }
+
+    return tryLoad(0);
+  };
+
+  /**
+   * OCR 识别图片中的单词
+   * 使用 Tesseract.js 识别英文和中文，按行配对
+   */
+  OCRController.prototype.recognize = function (imageBlob) {
+    var self = this;
+
+    var imageUrl = URL.createObjectURL(imageBlob);
+
+    return this._loadTesseract()
+      .then(function () {
+        if (!global.Tesseract) {
+          throw new Error('Tesseract.js 加载失败');
+        }
+        // 用英文 + 中文同时识别
+        return self._recognizeWithLang(imageUrl, 'eng+chi_sim');
+      })
+      .then(function (fullText) {
+        URL.revokeObjectURL(imageUrl);
+        var words = self._parseMixedText(fullText);
+        return words;
+      })
+      .catch(function (err) {
+        URL.revokeObjectURL(imageUrl);
+        console.error('[OCRController] OCR 识别失败:', err);
+        throw err;
+      });
+  };
+
+  /**
+   * 使用 Tesseract.js v5 createWorker API 识别
+   */
+  OCRController.prototype._recognizeWithLang = function (imageUrl, lang) {
+    return global.Tesseract.createWorker(lang, 1, {
+      logger: function () {},
+    }).then(function (worker) {
+      return worker.recognize(imageUrl).then(function (result) {
+        var text = (result && result.data && result.data.text) || '';
+        return worker.terminate().then(function () {
+          return text;
+        });
+      }).catch(function (err) {
+        return worker.terminate().then(function () {
+          throw err;
+        });
+      });
+    });
+  };
+
+  /**
+   * 解析混合中英文文本，提取单词对
+   * 常见格式：每行一个单词，如 "apple 苹果" 或 "apple\n苹果"
+   */
+  OCRController.prototype._parseMixedText = function (text) {
+    var lines = (text || '')
+      .split('\n')
+      .map(function (l) { return l.trim(); })
+      .filter(function (l) { return l.length > 0; });
+
+    var results = [];
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+
+      // 尝试用空格或制表符分割
+      var parts = line.split(/[\s\t]+/).filter(function (p) { return p.length > 0; });
+
+      // 判断英文部分和中文部分
+      var english = '';
+      var chinese = '';
+
+      if (parts.length >= 2) {
+        // 找到英文部分（纯字母）和中文部分
+        for (var j = 0; j < parts.length; j++) {
+          var p = parts[j];
+          if (/^[a-zA-Z]/.test(p) && !english) {
+            english = p;
+          } else if (/[\u4e00-\u9fa5]/.test(p) && !chinese) {
+            chinese = p;
+          }
+        }
+        // 如果还有更多中文部分，拼接
+        for (var k = 0; k < parts.length; k++) {
+          var p2 = parts[k];
+          if (/[\u4e00-\u9fa5]/.test(p2) && chinese && p2 !== chinese) {
+            chinese = chinese + p2;
+          }
+        }
+      } else if (parts.length === 1) {
+        // 只有一个部分
+        if (/^[a-zA-Z]/.test(parts[0])) {
+          english = parts[0];
+        } else if (/[\u4e00-\u9fa5]/.test(parts[0])) {
+          chinese = parts[0];
+        }
+      }
+
+      // 如果当前行只有英文或只有中文，尝试和相邻行配对
+      if (english && !chinese) {
+        // 看看下一行是否有中文
+        if (i + 1 < lines.length) {
+          var nextLine = lines[i + 1].trim();
+          if (/[\u4e00-\u9fa5]/.test(nextLine) && !/^[a-zA-Z]/.test(nextLine)) {
+            chinese = nextLine;
+            i++; // 跳过下一行
+          }
+        }
+      }
+
+      if (english || chinese) {
+        results.push({
+          english: english,
+          chinese: chinese,
+        });
+      }
+    }
+
+    // 如果一条都没识别到，返回空数组（让上层提示用户手动输入）
+    if (results.length === 0 && lines.length > 0) {
+      // 最后的 fallback：把整段文本作为一个条目
+      results.push({
+        english: '',
+        chinese: text.substring(0, 50).trim(),
+      });
+    }
+
+    return results;
+  };
+
+  /**
    * 显示识别结果供用户编辑确认
-   * 弹出全屏编辑对话框，每行显示 english + chinese，可编辑
-   * @param {Array<{english: string, chinese: string}>} words - 识别结果数组
-   * @param {Function} onConfirm - 确认回调 (words) => void
-   * @param {Function} onCancel - 取消回调 () => void
    */
   OCRController.prototype.showEditDialog = function (words, onConfirm, onCancel) {
     var self = this;
 
-    // 如果已有对话框则不重复创建
     if (document.getElementById(this._dialogId)) {
       return;
     }
@@ -392,7 +405,6 @@
       };
     });
 
-    // 创建对话框
     var dialog = document.createElement('div');
     dialog.id = this._dialogId;
     dialog.style.cssText = [
@@ -413,7 +425,6 @@
       'overflow-y: auto',
     ].join(';');
 
-    // 对话框内容容器
     var content = document.createElement('div');
     content.style.cssText = [
       'width: 100%',
@@ -426,7 +437,6 @@
     ].join(';');
     dialog.appendChild(content);
 
-    // 标题
     var title = document.createElement('h3');
     title.textContent = '编辑识别结果';
     title.style.cssText = [
@@ -438,7 +448,6 @@
     ].join(';');
     content.appendChild(title);
 
-    // 提示文字
     var hint = document.createElement('p');
     hint.textContent = '请核对并修改识别结果，确认无误后点击保存';
     hint.style.cssText = [
@@ -449,15 +458,11 @@
     ].join(';');
     content.appendChild(hint);
 
-    // 行列表容器
     var rowsContainer = document.createElement('div');
     rowsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;';
     content.appendChild(rowsContainer);
 
-    /**
-     * 创建一行编辑组件
-     */
-    function createRow(word, index) {
+    function createRow(word) {
       var row = document.createElement('div');
       row.style.cssText = [
         'display: flex',
@@ -469,7 +474,6 @@
         'border: 1px solid #e7e5e4',
       ].join(';');
 
-      // 英文输入框
       var engInput = document.createElement('input');
       engInput.type = 'text';
       engInput.value = word.english;
@@ -477,7 +481,6 @@
       engInput.style.cssText = self._inputStyle();
       row.appendChild(engInput);
 
-      // 中文输入框
       var chiInput = document.createElement('input');
       chiInput.type = 'text';
       chiInput.value = word.chinese;
@@ -485,7 +488,6 @@
       chiInput.style.cssText = self._inputStyle();
       row.appendChild(chiInput);
 
-      // 删除按钮
       var delBtn = document.createElement('button');
       delBtn.textContent = '\u00D7';
       delBtn.style.cssText = [
@@ -510,12 +512,10 @@
       return row;
     }
 
-    // 添加初始行
     editableWords.forEach(function (word) {
       rowsContainer.appendChild(createRow(word));
     });
 
-    // 添加行按钮
     var addRowBtn = document.createElement('button');
     addRowBtn.textContent = '+ 添加新行';
     addRowBtn.style.cssText = [
@@ -535,12 +535,10 @@
     };
     content.appendChild(addRowBtn);
 
-    // 按钮容器
     var btnContainer = document.createElement('div');
     btnContainer.style.cssText = 'display: flex; gap: 12px;';
     content.appendChild(btnContainer);
 
-    // 取消按钮
     var cancelBtn = document.createElement('button');
     cancelBtn.textContent = '取消';
     cancelBtn.style.cssText = this._btnStyle('#e7e5e4', '#44403c');
@@ -550,12 +548,10 @@
     };
     btnContainer.appendChild(cancelBtn);
 
-    // 确认按钮
     var confirmBtn = document.createElement('button');
     confirmBtn.textContent = '保存';
     confirmBtn.style.cssText = this._btnStyle('#0d9488', '#ffffff');
     confirmBtn.onclick = function () {
-      // 收集所有行数据
       var result = [];
       var rows = rowsContainer.children;
       for (var i = 0; i < rows.length; i++) {
@@ -574,9 +570,6 @@
     document.body.appendChild(dialog);
   };
 
-  /**
-   * 关闭对话框
-   */
   OCRController.prototype._closeDialog = function (dialog) {
     if (dialog && dialog.parentNode) {
       dialog.parentNode.removeChild(dialog);
@@ -585,12 +578,6 @@
 
   // ==================== 内部样式工具 ====================
 
-  /**
-   * 按钮样式
-   * @param {string} bgColor - 背景色
-   * @param {string} textColor - 文字色
-   * @returns {string} CSS 样式字符串
-   */
   OCRController.prototype._btnStyle = function (bgColor, textColor) {
     return [
       'flex: 1',
@@ -606,10 +593,6 @@
     ].join(';');
   };
 
-  /**
-   * 输入框样式
-   * @returns {string} CSS 样式字符串
-   */
   OCRController.prototype._inputStyle = function () {
     return [
       'flex: 1',
@@ -624,6 +607,5 @@
     ].join(';');
   };
 
-  // 导出为全局变量
   global.OCRController = OCRController;
 })(window);
